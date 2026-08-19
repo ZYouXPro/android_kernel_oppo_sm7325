@@ -35,12 +35,6 @@
 
 #include "internal.h"
 
-#ifdef CONFIG_KSU
-__attribute__((hot))
-extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user,
-				int *mode, int *flags);
-#endif
-
 int do_truncate(struct dentry *dentry, loff_t length, unsigned int time_attrs,
 	struct file *filp)
 {
@@ -425,7 +419,7 @@ retry:
 	 * This is a rare case where using __mnt_is_readonly()
 	 * is OK without a mnt_want/drop_write() pair.  Since
 	 * no actual write to the fs is performed here, we do
-	 * not need to telegraph that to anyone.
+	 * not need to telegraph to that to anyone.
 	 *
 	 * By doing this, we accept that this access is
 	 * inherently racy and know that the fs may change
@@ -448,9 +442,6 @@ out:
 
 SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
 {
-#ifdef CONFIG_KSU
-	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
-#endif
 	return do_faccessat(dfd, filename, mode);
 }
 
