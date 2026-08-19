@@ -101,6 +101,7 @@ jobs:
           export ARCH="arm64"
           export SUBARCH="arm64"
           cd kernel/msm-5.4
+          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s legacy
           make O=out CC="clang" LLVM=1 shit_defconfig
           make O=out CC="clang" LLVM=1 -j$(nproc)
 
@@ -138,21 +139,20 @@ jobs:
       - name: Upload Flashable Kernel
         uses: actions/upload-artifact@v6
         with:
-          name: Q3s_Flashable
+          name: SHIT_Flashable
           path: |
-            Q3s-${{ env.BUILD_DATE }}.zip
+            SHIT-${{ env.BUILD_DATE }}.zip
 
       - name: Upload Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.BUILD_DATE }}
-          name: KernelSU Kernel for Q3s (${{ env.BUILD_DATE }})
+          name: KernelSU Kernel for OPLUS SM7325 (${{ env.BUILD_DATE }})
           body: |
             - 编译日期: ${{ env.BUILD_DATE }}
             - 核心版本: 5.4
             - 欢迎刷入ZYOUX的内核！祝你玩的愉快！
           files: |
-            Q3s-${{ env.BUILD_DATE }}.zip
-            boot-Q3s-${{ env.BUILD_DATE }}.img
+            boot-KernelSU-Next-${{ env.BUILD_DATE }}.img
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
