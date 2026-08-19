@@ -103,6 +103,8 @@ jobs:
           cd kernel/msm-5.4
           curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s legacy
           make O=out CC="clang" LLVM=1 shit_defconfig
+          ./scripts/config --file out/.config \
+            -e CONFIG_KSU_MANUAL_HOOK \
           make O=out CC="clang" LLVM=1 -j$(nproc)
 
       - name: Package with AnyKernel3
@@ -115,7 +117,7 @@ jobs:
           cd AnyKernel3
           rm anykernel.sh
           wget https://github.com/miaizhe/Kernel_oppo_sm7325_Reno10/releases/download/boot/anykernel.sh
-          zip -r9 ../Q3s-${{ env.BUILD_DATE }}.zip * -x .git* README.md *placeholder
+          zip -r9 ../SHIT-${{ env.BUILD_DATE }}.zip * -x .git* README.md *placeholder
 
       - name: Pack Boot Image
         run: |
