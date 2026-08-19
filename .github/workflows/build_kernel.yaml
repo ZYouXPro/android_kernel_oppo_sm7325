@@ -70,7 +70,7 @@ jobs:
           export ARCH="arm64"
           export SUBARCH="arm64"
           cd kernel/msm-5.4
-          make O=out CC="clang" LLVM=1 vendor/lahaina-qgki_defconfig
+          make O=out CC="clang" LLVM=1 defconfig
           make O=out CC="clang" LLVM=1 -j$(nproc)
 
       - name: Package with AnyKernel3
