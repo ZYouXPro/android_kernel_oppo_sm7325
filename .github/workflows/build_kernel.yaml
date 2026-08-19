@@ -12,7 +12,7 @@ jobs:
     name: Compile Kernel
     runs-on: ubuntu-24.04
     permissions:
-      contents: write   # 赋予创建 Release 的权限
+      contents: write
 
     steps:
       - name: Configure Fast APT Mirror
@@ -59,6 +59,37 @@ jobs:
         run: |
           BUILD_DATE=$(date +%Y%m%d)
           echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_ENV
+
+      - name: Create symlinks for techpack
+        run: |
+          cd kernel/msm-5.4
+          ROOT="$(pwd)"
+
+          # 1. smartpa_pm 目录软链接（两个 codec 目录都指向 ../smartpa_pm/）
+          rm -rf techpack/audio/asoc/codecs/aw882xx/smartpa_pm
+          ln -sf "$ROOT/techpack/audio/asoc/codecs/smartpa_pm" techpack/audio/asoc/codecs/aw882xx/smartpa_pm
+
+          rm -rf techpack/audio/asoc/codecs/tfa98xx-v6/smartpa_pm
+          ln -sf "$ROOT/techpack/audio/asoc/codecs/smartpa_pm" techpack/audio/asoc/codecs/tfa98xx-v6/smartpa_pm
+
+          # 2. core.h
+          rm -f techpack/audio/soc/core.h
+          ln -sf "$ROOT/drivers/pinctrl/core.h" techpack/audio/soc/core.h
+
+          # 3. pinctrl-utils.h
+          rm -f techpack/audio/soc/pinctrl-utils.h
+          ln -sf "$ROOT/drivers/pinctrl/pinctrl-utils.h" techpack/audio/soc/pinctrl-utils.h
+
+          # 4. internal.h
+          rm -f techpack/audio/include/soc/internal.h
+          ln -sf "$ROOT/drivers/base/regmap/internal.h" techpack/audio/include/soc/internal.h
+
+          # 验证链接
+          ls -la techpack/audio/asoc/codecs/aw882xx/smartpa_pm
+          ls -la techpack/audio/asoc/codecs/tfa98xx-v6/smartpa_pm
+          ls -la techpack/audio/soc/core.h
+          ls -la techpack/audio/soc/pinctrl-utils.h
+          ls -la techpack/audio/include/soc/internal.h
 
       - name: Compile Kernel
         run: |
