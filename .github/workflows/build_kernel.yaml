@@ -60,17 +60,6 @@ jobs:
           BUILD_DATE=$(date +%Y%m%d)
           echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_ENV
 
-      - name: Fix missing symlinks in techpack
-        run: |
-          cd kernel/msm-5.4
-          rm -f techpack/audio/soc/core.h
-          rm -f techpack/audio/soc/pinctrl-utils.h
-          rm -f techpack/audio/include/soc/internal.h
-          ln -sf "$(pwd)/drivers/pinctrl/core.h" techpack/audio/soc/core.h
-          ln -sf "$(pwd)/drivers/pinctrl/pinctrl-utils.h" techpack/audio/soc/pinctrl-utils.h
-          ln -sf "$(pwd)/drivers/base/regmap/internal.h" techpack/audio/include/soc/internal.h
-          ls -l techpack/audio/soc/core.h techpack/audio/soc/pinctrl-utils.h techpack/audio/include/soc/internal.h
-
       - name: Compile Kernel
         run: |
           export PATH="$(pwd)/compiler/clang-bin/bin:$PATH"
