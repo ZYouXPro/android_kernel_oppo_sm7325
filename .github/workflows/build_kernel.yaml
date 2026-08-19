@@ -136,7 +136,7 @@ jobs:
             exit 1
           fi
           cp ../kernel/msm-5.4/out/arch/arm64/boot/Image kernel
-          ./magiskboot repack boot_origin.img ../boot-Q3s-${{ env.BUILD_DATE }}.img
+          ./magiskboot repack boot_origin.img ../boot-KernelSU-Next-${{ env.BUILD_DATE }}.img
           pwd
           cd ..
           pwd
