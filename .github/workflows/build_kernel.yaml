@@ -101,6 +101,7 @@ jobs:
           export ARCH="arm64"
           export SUBARCH="arm64"
           cd kernel/msm-5.4
+          make O=out CC="clang" LLVM=1 shit_defconfig
           make O=out CC="clang" LLVM=1 -j$(nproc)
 
       - name: Package with AnyKernel3
