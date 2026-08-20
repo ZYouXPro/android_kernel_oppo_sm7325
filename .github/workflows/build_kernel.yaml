@@ -107,7 +107,7 @@ jobs:
           bash syscall_hook_patches.sh
           make O=out CC="clang" LLVM=1 shit_defconfig
           ./scripts/config --file out/.config \
-            -d CONFIG_KSU_TRACEPOINT_HOOK \ 
+            -d CONFIG_KSU_TRACEPOINT_HOOK \
             -e CONFIG_KSU_MANUAL_HOOK
           make O=out CC="clang" LLVM=1 -j$(nproc)
 
