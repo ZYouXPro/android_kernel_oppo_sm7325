@@ -70,7 +70,7 @@ jobs:
           export ARCH="arm64"
           export SUBARCH="arm64"
           cd kernel/msm-5.4
-          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/fd093e8b879063aeb0192a3959b0652101ded623/kernel/setup.sh" | bash -s legacy
+          curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
           curl -LSs "https://raw.githubusercontent.com/JackA1ltman/NonGKI_Kernel_Build_2nd/mainline/Patches/syscall_hook_patches.sh" -o syscall_hook_patches.sh
           chmod +x syscall_hook_patches.sh
           bash syscall_hook_patches.sh
