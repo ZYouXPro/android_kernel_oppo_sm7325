@@ -8138,23 +8138,22 @@ static void perf_event_bpf_emit_ksymbols(struct bpf_prog *prog,
 					 enum perf_bpf_event_type type)
 {
 	bool unregister = type == PERF_BPF_EVENT_PROG_UNLOAD;
-	char sym[KSYM_NAME_LEN];
 	int i;
 
 	if (prog->aux->func_cnt == 0) {
-		bpf_get_prog_name(prog, sym);
 		perf_event_ksymbol(PERF_RECORD_KSYMBOL_TYPE_BPF,
 				   (u64)(unsigned long)prog->bpf_func,
-				   prog->jited_len, unregister, sym);
+				   prog->jited_len, unregister,
+				   prog->aux->ksym.name);
 	} else {
 		for (i = 0; i < prog->aux->func_cnt; i++) {
 			struct bpf_prog *subprog = prog->aux->func[i];
 
-			bpf_get_prog_name(subprog, sym);
 			perf_event_ksymbol(
 				PERF_RECORD_KSYMBOL_TYPE_BPF,
 				(u64)(unsigned long)subprog->bpf_func,
-				subprog->jited_len, unregister, sym);
+				subprog->jited_len, unregister,
+				subprog->aux->ksym.name);
 		}
 	}
 }
@@ -10726,12 +10725,9 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 		context = parent_event->overflow_handler_context;
 #if defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_EVENT_TRACING)
 		if (overflow_handler == bpf_overflow_handler) {
-			struct bpf_prog *prog = bpf_prog_inc(parent_event->prog);
+			struct bpf_prog *prog = parent_event->prog;
 
-			if (IS_ERR(prog)) {
-				err = PTR_ERR(prog);
-				goto err_ns;
-			}
+			bpf_prog_inc(prog);
 			event->prog = prog;
 			event->orig_overflow_handler =
 				parent_event->orig_overflow_handler;

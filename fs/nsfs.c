@@ -245,6 +245,11 @@ out_invalid:
 	return ERR_PTR(-EINVAL);
 }
 
+bool ns_match(const struct ns_common *ns, dev_t dev, ino_t ino)
+{
+	return ns->inum == ino && nsfs_mnt->mnt_sb->s_dev == dev;
+}
+
 static int nsfs_show_path(struct seq_file *seq, struct dentry *dentry)
 {
 	struct inode *inode = d_inode(dentry);

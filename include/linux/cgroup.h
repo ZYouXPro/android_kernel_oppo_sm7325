@@ -308,6 +308,11 @@ void css_task_iter_end(struct css_task_iter *it);
  * Inline functions.
  */
 
+static inline u64 cgroup_id(struct cgroup *cgrp)
+{
+	return cgrp->kn->id.id;
+}
+
 /**
  * css_get - obtain a reference on the specified css
  * @css: target css

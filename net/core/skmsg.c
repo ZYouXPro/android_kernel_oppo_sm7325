@@ -623,7 +623,9 @@ static void sk_psock_destroy_deferred(struct work_struct *gc)
 
 	/* Parser has been stopped */
 	if (psock->progs.skb_parser)
+#ifdef CONFIG_BPF_STREAM_PARSER
 		strp_done(&psock->parser.strp);
+#endif
 
 	cancel_work_sync(&psock->work);
 
@@ -848,6 +850,7 @@ out_free:
 	}
 }
 
+#ifdef CONFIG_BPF_STREAM_PARSER
 static void sk_psock_strp_read(struct strparser *strp, struct sk_buff *skb)
 {
 	struct sk_psock *psock;
@@ -892,6 +895,7 @@ static int sk_psock_strp_parse(struct strparser *strp, struct sk_buff *skb)
 	rcu_read_unlock();
 	return ret;
 }
+#endif /* CONFIG_BPF_STREAM_PARSER */
 
 /* Called with socket lock held. */
 static void sk_psock_strp_data_ready(struct sock *sk)
@@ -904,9 +908,11 @@ static void sk_psock_strp_data_ready(struct sock *sk)
 		if (tls_sw_has_ctx_rx(sk)) {
 			psock->parser.saved_data_ready(sk);
 		} else {
-			write_lock_bh(&sk->sk_callback_lock);
+			read_lock_bh(&sk->sk_callback_lock);
+#ifdef CONFIG_BPF_STREAM_PARSER
 			strp_data_ready(&psock->parser.strp);
-			write_unlock_bh(&sk->sk_callback_lock);
+#endif
+			read_unlock_bh(&sk->sk_callback_lock);
 		}
 	}
 	rcu_read_unlock();
@@ -931,6 +937,7 @@ static void sk_psock_write_space(struct sock *sk)
 
 int sk_psock_init_strp(struct sock *sk, struct sk_psock *psock)
 {
+#ifdef CONFIG_BPF_STREAM_PARSER
 	static const struct strp_callbacks cb = {
 		.rcv_msg	= sk_psock_strp_read,
 		.read_sock_done	= sk_psock_strp_read_done,
@@ -939,6 +946,9 @@ int sk_psock_init_strp(struct sock *sk, struct sk_psock *psock)
 
 	psock->parser.enabled = false;
 	return strp_init(&psock->parser.strp, sk, &cb);
+#else
+	return -EOPNOTSUPP;
+#endif
 }
 
 void sk_psock_start_strp(struct sock *sk, struct sk_psock *psock)
@@ -963,6 +973,8 @@ void sk_psock_stop_strp(struct sock *sk, struct sk_psock *psock)
 
 	sk->sk_data_ready = parser->saved_data_ready;
 	parser->saved_data_ready = NULL;
+#ifdef CONFIG_BPF_STREAM_PARSER
 	strp_stop(&parser->strp);
+#endif
 	parser->enabled = false;
 }

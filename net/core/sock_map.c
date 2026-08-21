@@ -470,6 +470,12 @@ out:
 	return ret;
 }
 
+int sock_map_update_elem_sys(struct bpf_map *map, void *key, void *value,
+			     u64 flags)
+{
+	return sock_map_update_elem(map, key, value, flags);
+}
+
 BPF_CALL_4(bpf_sock_map_update, struct bpf_sock_ops_kern *, sops,
 	   struct bpf_map *, map, void *, key, u64, flags)
 {

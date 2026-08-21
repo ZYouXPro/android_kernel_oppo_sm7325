@@ -776,6 +776,11 @@ static inline int hlist_unhashed(const struct hlist_node *h)
 	return !h->pprev;
 }
 
+static inline int hlist_unhashed_lockless(const struct hlist_node *h)
+{
+	return !READ_ONCE(h->pprev);
+}
+
 static inline int hlist_empty(const struct hlist_head *h)
 {
 	return !READ_ONCE(h->first);

@@ -83,7 +83,7 @@ struct btf_type {
  * is the 32 bits arrangement:
  */
 #define BTF_INT_ENCODING(VAL)	(((VAL) & 0x0f000000) >> 24)
-#define BTF_INT_OFFSET(VAL)	(((VAL) & 0x00ff0000) >> 16)
+#define BTF_INT_OFFSET(VAL)	(((VAL  & 0x00ff0000)) >> 16)
 #define BTF_INT_BITS(VAL)	((VAL)  & 0x000000ff)
 
 /* Attributes stored in the BTF_INT_ENCODING */
@@ -143,6 +143,12 @@ struct btf_param {
 enum {
 	BTF_VAR_STATIC = 0,
 	BTF_VAR_GLOBAL_ALLOCATED,
+};
+
+enum btf_func_linkage {
+	BTF_FUNC_STATIC = 0,
+	BTF_FUNC_GLOBAL = 1,
+	BTF_FUNC_EXTERN = 2,
 };
 
 /* BTF_KIND_VAR is followed by a single "struct btf_var" to describe

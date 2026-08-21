@@ -1246,6 +1246,18 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 
 	down_read(&uts_sem);
 	memcpy(&tmp, utsname(), sizeof(tmp));
+	/*
+	 * Android 25Q4 and later make netbpfload reject kernels older than
+	 * 5.10 based solely on uname(2).  This 5.4 vendor kernel carries the
+	 * required 5.10 BPF backport, so expose the corresponding compatibility
+	 * level only to that loader.  Keep the real release visible everywhere
+	 * else: globally changing UTS_RELEASE would also change module vermagic
+	 * and userspace feature selection unrelated to BPF.
+	 */
+	if (!strcmp(current->comm, "netbpfload")) {
+		strscpy(tmp.release, "5.10.199-dsu-bpf-compat",
+			sizeof(tmp.release));
+	}
 	up_read(&uts_sem);
 	if (copy_to_user(name, &tmp, sizeof(tmp)))
 		return -EFAULT;

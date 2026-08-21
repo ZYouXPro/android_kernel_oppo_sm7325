@@ -2588,6 +2588,12 @@ static inline bool sk_fullsock(const struct sock *sk)
 	return (1 << sk->sk_state) & ~(TCPF_TIME_WAIT | TCPF_NEW_SYN_RECV);
 }
 
+static inline bool sk_is_refcounted(struct sock *sk)
+{
+	/* Only full sockets have sk->sk_flags. */
+	return !sk_fullsock(sk) || !sock_flag(sk, SOCK_RCU_FREE);
+}
+
 /* Checks if this SKB belongs to an HW offloaded socket
  * and whether any SW fallbacks are required based on dev.
  * Check decrypted mark in case skb_orphan() cleared socket.

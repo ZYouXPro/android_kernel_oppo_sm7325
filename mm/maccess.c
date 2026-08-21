@@ -61,6 +61,12 @@ long __probe_kernel_read(void *dst, const void *src, size_t size)
 }
 EXPORT_SYMBOL_GPL(probe_kernel_read);
 
+long copy_from_kernel_nofault(void *dst, const void *src, size_t size)
+{
+	return probe_kernel_read(dst, src, size);
+}
+EXPORT_SYMBOL_GPL(copy_from_kernel_nofault);
+
 /**
  * probe_user_read(): safely attempt to read from a user-space location
  * @dst: pointer to the buffer that shall take the data

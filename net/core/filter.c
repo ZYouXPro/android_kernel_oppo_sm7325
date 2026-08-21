@@ -47,6 +47,8 @@
 #include <linux/seccomp.h>
 #include <linux/if_vlan.h>
 #include <linux/bpf.h>
+#include <linux/btf.h>
+#include <linux/btf_ids.h>
 #include <net/sch_generic.h>
 #include <net/cls_cgroup.h>
 #include <net/dst_metadata.h>
@@ -255,17 +257,6 @@ BPF_CALL_2(bpf_skb_load_helper_32_no_cache, const struct sk_buff *, skb,
 	return ____bpf_skb_load_helper_32(skb, skb->data, skb->len - skb->data_len,
 					  offset);
 }
-
-BPF_CALL_0(bpf_get_raw_cpu_id)
-{
-	return raw_smp_processor_id();
-}
-
-static const struct bpf_func_proto bpf_get_raw_smp_processor_id_proto = {
-	.func		= bpf_get_raw_cpu_id,
-	.gpl_only	= false,
-	.ret_type	= RET_INTEGER,
-};
 
 static u32 convert_skb_access(int skb_field, int dst_reg, int src_reg,
 			      struct bpf_insn *insn_buf)
@@ -4182,6 +4173,19 @@ static const struct bpf_func_proto bpf_get_socket_cookie_proto = {
 	.arg1_type      = ARG_PTR_TO_CTX,
 };
 
+/* BPF_PROG_TYPE_CGROUP_SOCK receives struct sock directly as its context. */
+BPF_CALL_1(bpf_get_socket_cookie_sock, struct sock *, ctx)
+{
+	return sock_gen_cookie(ctx);
+}
+
+static const struct bpf_func_proto bpf_get_socket_cookie_sock_proto = {
+	.func		= bpf_get_socket_cookie_sock,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+};
+
 BPF_CALL_1(bpf_get_socket_cookie_sock_addr, struct bpf_sock_addr_kern *, ctx)
 {
 	return sock_gen_cookie(ctx->sk);
@@ -6019,52 +6023,7 @@ bool bpf_helper_changes_pkt_data(void *func)
 	return false;
 }
 
-static const struct bpf_func_proto *
-bpf_base_func_proto(enum bpf_func_id func_id)
-{
-	switch (func_id) {
-	case BPF_FUNC_map_lookup_elem:
-		return &bpf_map_lookup_elem_proto;
-	case BPF_FUNC_map_update_elem:
-		return &bpf_map_update_elem_proto;
-	case BPF_FUNC_map_delete_elem:
-		return &bpf_map_delete_elem_proto;
-	case BPF_FUNC_map_push_elem:
-		return &bpf_map_push_elem_proto;
-	case BPF_FUNC_map_pop_elem:
-		return &bpf_map_pop_elem_proto;
-	case BPF_FUNC_map_peek_elem:
-		return &bpf_map_peek_elem_proto;
-	case BPF_FUNC_get_prandom_u32:
-		return &bpf_get_prandom_u32_proto;
-	case BPF_FUNC_get_smp_processor_id:
-		return &bpf_get_raw_smp_processor_id_proto;
-	case BPF_FUNC_get_numa_node_id:
-		return &bpf_get_numa_node_id_proto;
-	case BPF_FUNC_tail_call:
-		return &bpf_tail_call_proto;
-	case BPF_FUNC_ktime_get_ns:
-		return &bpf_ktime_get_ns_proto;
-	case BPF_FUNC_ktime_get_boot_ns:
-		return &bpf_ktime_get_boot_ns_proto;
-	default:
-		break;
-	}
-
-	if (!capable(CAP_SYS_ADMIN))
-		return NULL;
-
-	switch (func_id) {
-	case BPF_FUNC_spin_lock:
-		return &bpf_spin_lock_proto;
-	case BPF_FUNC_spin_unlock:
-		return &bpf_spin_unlock_proto;
-	case BPF_FUNC_trace_printk:
-		return bpf_get_trace_printk_proto();
-	default:
-		return NULL;
-	}
-}
+const struct bpf_func_proto bpf_sk_storage_get_cg_sock_proto __weak;
 
 static const struct bpf_func_proto *
 sock_filter_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
@@ -6075,8 +6034,12 @@ sock_filter_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	 */
 	case BPF_FUNC_get_current_uid_gid:
 		return &bpf_get_current_uid_gid_proto;
+	case BPF_FUNC_get_socket_cookie:
+		return &bpf_get_socket_cookie_sock_proto;
 	case BPF_FUNC_get_local_storage:
 		return &bpf_get_local_storage_proto;
+	case BPF_FUNC_sk_storage_get:
+		return &bpf_sk_storage_get_cg_sock_proto;
 	default:
 		return bpf_base_func_proto(func_id);
 	}
@@ -6161,8 +6124,18 @@ cg_skb_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 #ifdef CONFIG_SOCK_CGROUP_DATA
 	case BPF_FUNC_skb_cgroup_id:
 		return &bpf_skb_cgroup_id_proto;
+	case BPF_FUNC_skb_ancestor_cgroup_id:
+		return &bpf_skb_ancestor_cgroup_id_proto;
 #endif
 #ifdef CONFIG_INET
+	case BPF_FUNC_sk_lookup_tcp:
+		return &bpf_sk_lookup_tcp_proto;
+	case BPF_FUNC_sk_lookup_udp:
+		return &bpf_sk_lookup_udp_proto;
+	case BPF_FUNC_sk_release:
+		return &bpf_sk_release_proto;
+	case BPF_FUNC_skc_lookup_tcp:
+		return &bpf_skc_lookup_tcp_proto;
 	case BPF_FUNC_tcp_sock:
 		return &bpf_tcp_sock_proto;
 	case BPF_FUNC_get_listener_sock:
@@ -8804,16 +8777,6 @@ out:
 }
 
 #ifdef CONFIG_INET
-struct sk_reuseport_kern {
-	struct sk_buff *skb;
-	struct sock *sk;
-	struct sock *selected_sk;
-	void *data_end;
-	u32 hash;
-	u32 reuseport_id;
-	bool bind_inany;
-};
-
 static void bpf_init_reuseport_kern(struct sk_reuseport_kern *reuse_kern,
 				    struct sock_reuseport *reuse,
 				    struct sock *sk, struct sk_buff *skb,
@@ -9069,4 +9032,193 @@ const struct bpf_verifier_ops sk_reuseport_verifier_ops = {
 
 const struct bpf_prog_ops sk_reuseport_prog_ops = {
 };
+
+DEFINE_STATIC_KEY_FALSE(bpf_sk_lookup_enabled);
+EXPORT_SYMBOL(bpf_sk_lookup_enabled);
+
+BPF_CALL_3(bpf_sk_lookup_assign, struct bpf_sk_lookup_kern *, ctx,
+	   struct sock *, sk, u64, flags)
+{
+	if (unlikely(flags & ~(BPF_SK_LOOKUP_F_REPLACE |
+			       BPF_SK_LOOKUP_F_NO_REUSEPORT)))
+		return -EINVAL;
+	if (unlikely(sk && sk_is_refcounted(sk)))
+		return -ESOCKTNOSUPPORT;
+	if (unlikely(sk && sk->sk_state == TCP_ESTABLISHED))
+		return -ESOCKTNOSUPPORT;
+
+	if (sk && sk->sk_protocol != ctx->protocol)
+		return -EPROTOTYPE;
+	if (sk && sk->sk_family != ctx->family &&
+	    (sk->sk_family == AF_INET || ipv6_only_sock(sk)))
+		return -EAFNOSUPPORT;
+	if (ctx->selected_sk && !(flags & BPF_SK_LOOKUP_F_REPLACE))
+		return -EEXIST;
+
+	ctx->selected_sk = sk;
+	ctx->no_reuseport = flags & BPF_SK_LOOKUP_F_NO_REUSEPORT;
+	return 0;
+}
+
+static const struct bpf_func_proto bpf_sk_lookup_assign_proto = {
+	.func		= bpf_sk_lookup_assign,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_PTR_TO_SOCKET_OR_NULL,
+	.arg3_type	= ARG_ANYTHING,
+};
+
+static const struct bpf_func_proto *
+sk_lookup_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
+{
+	switch (func_id) {
+	case BPF_FUNC_perf_event_output:
+		return &bpf_event_output_data_proto;
+	case BPF_FUNC_sk_assign:
+		return &bpf_sk_lookup_assign_proto;
+	case BPF_FUNC_sk_release:
+		return &bpf_sk_release_proto;
+	default:
+		return bpf_base_func_proto(func_id);
+	}
+}
+
+static bool sk_lookup_is_valid_access(int off, int size,
+				      enum bpf_access_type type,
+				      const struct bpf_prog *prog,
+				      struct bpf_insn_access_aux *info)
+{
+	if (off < 0 || off >= sizeof(struct bpf_sk_lookup) || off % size != 0)
+		return false;
+	if (type != BPF_READ)
+		return false;
+
+	switch (off) {
+	case offsetof(struct bpf_sk_lookup, sk):
+		info->reg_type = PTR_TO_SOCKET_OR_NULL;
+		return size == sizeof(__u64);
+	case bpf_ctx_range(struct bpf_sk_lookup, family):
+	case bpf_ctx_range(struct bpf_sk_lookup, protocol):
+	case bpf_ctx_range(struct bpf_sk_lookup, remote_ip4):
+	case bpf_ctx_range(struct bpf_sk_lookup, local_ip4):
+	case bpf_ctx_range_till(struct bpf_sk_lookup, remote_ip6[0], remote_ip6[3]):
+	case bpf_ctx_range_till(struct bpf_sk_lookup, local_ip6[0], local_ip6[3]):
+	case bpf_ctx_range(struct bpf_sk_lookup, remote_port):
+	case bpf_ctx_range(struct bpf_sk_lookup, local_port):
+		bpf_ctx_record_field_size(info, sizeof(__u32));
+		return bpf_ctx_narrow_access_ok(off, size, sizeof(__u32));
+	default:
+		return false;
+	}
+}
+
+static u32 sk_lookup_convert_ctx_access(enum bpf_access_type type,
+					const struct bpf_insn *si,
+					struct bpf_insn *insn_buf,
+					struct bpf_prog *prog,
+					u32 *target_size)
+{
+	struct bpf_insn *insn = insn_buf;
+
+	switch (si->off) {
+	case offsetof(struct bpf_sk_lookup, sk):
+		*insn++ = BPF_LDX_MEM(BPF_SIZEOF(void *), si->dst_reg, si->src_reg,
+				      offsetof(struct bpf_sk_lookup_kern, selected_sk));
+		break;
+	case offsetof(struct bpf_sk_lookup, family):
+		*insn++ = BPF_LDX_MEM(BPF_H, si->dst_reg, si->src_reg,
+				      bpf_target_off(struct bpf_sk_lookup_kern,
+						     family, 2, target_size));
+		break;
+	case offsetof(struct bpf_sk_lookup, protocol):
+		*insn++ = BPF_LDX_MEM(BPF_H, si->dst_reg, si->src_reg,
+				      bpf_target_off(struct bpf_sk_lookup_kern,
+						     protocol, 2, target_size));
+		break;
+	case offsetof(struct bpf_sk_lookup, remote_ip4):
+		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->src_reg,
+				      bpf_target_off(struct bpf_sk_lookup_kern,
+						     v4.saddr, 4, target_size));
+		break;
+	case offsetof(struct bpf_sk_lookup, local_ip4):
+		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->src_reg,
+				      bpf_target_off(struct bpf_sk_lookup_kern,
+						     v4.daddr, 4, target_size));
+		break;
+	case bpf_ctx_range_till(struct bpf_sk_lookup,
+				remote_ip6[0], remote_ip6[3]): {
+#if IS_ENABLED(CONFIG_IPV6)
+		int off = si->off;
+
+		off -= offsetof(struct bpf_sk_lookup, remote_ip6[0]);
+		off += bpf_target_off(struct in6_addr, s6_addr32[0], 4,
+				      target_size);
+		*insn++ = BPF_LDX_MEM(BPF_SIZEOF(void *), si->dst_reg,
+				      si->src_reg,
+				      offsetof(struct bpf_sk_lookup_kern, v6.saddr));
+		*insn++ = BPF_JMP_IMM(BPF_JEQ, si->dst_reg, 0, 1);
+		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->dst_reg, off);
+#else
+		*insn++ = BPF_MOV32_IMM(si->dst_reg, 0);
+#endif
+		break;
+	}
+	case bpf_ctx_range_till(struct bpf_sk_lookup,
+				local_ip6[0], local_ip6[3]): {
+#if IS_ENABLED(CONFIG_IPV6)
+		int off = si->off;
+
+		off -= offsetof(struct bpf_sk_lookup, local_ip6[0]);
+		off += bpf_target_off(struct in6_addr, s6_addr32[0], 4,
+				      target_size);
+		*insn++ = BPF_LDX_MEM(BPF_SIZEOF(void *), si->dst_reg,
+				      si->src_reg,
+				      offsetof(struct bpf_sk_lookup_kern, v6.daddr));
+		*insn++ = BPF_JMP_IMM(BPF_JEQ, si->dst_reg, 0, 1);
+		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->dst_reg, off);
+#else
+		*insn++ = BPF_MOV32_IMM(si->dst_reg, 0);
+#endif
+		break;
+	}
+	case offsetof(struct bpf_sk_lookup, remote_port):
+		*insn++ = BPF_LDX_MEM(BPF_H, si->dst_reg, si->src_reg,
+				      bpf_target_off(struct bpf_sk_lookup_kern,
+						     sport, 2, target_size));
+		break;
+	case offsetof(struct bpf_sk_lookup, local_port):
+		*insn++ = BPF_LDX_MEM(BPF_H, si->dst_reg, si->src_reg,
+				      bpf_target_off(struct bpf_sk_lookup_kern,
+						     dport, 2, target_size));
+		break;
+	}
+
+	return insn - insn_buf;
+}
+
+const struct bpf_prog_ops sk_lookup_prog_ops = {
+};
+
+const struct bpf_verifier_ops sk_lookup_verifier_ops = {
+	.get_func_proto		= sk_lookup_func_proto,
+	.is_valid_access	= sk_lookup_is_valid_access,
+	.convert_ctx_access	= sk_lookup_convert_ctx_access,
+};
 #endif /* CONFIG_INET */
+
+DEFINE_BPF_DISPATCHER(xdp)
+
+void bpf_prog_change_xdp(struct bpf_prog *prev_prog, struct bpf_prog *prog)
+{
+	bpf_dispatcher_change_prog(BPF_DISPATCHER_PTR(xdp), prev_prog, prog);
+}
+
+#ifdef CONFIG_DEBUG_INFO_BTF
+BTF_ID_LIST_GLOBAL(btf_sock_ids)
+#define BTF_SOCK_TYPE(name, type) BTF_ID(struct, type)
+BTF_SOCK_TYPE_xxx
+#undef BTF_SOCK_TYPE
+#else
+u32 btf_sock_ids[MAX_BTF_SOCK_TYPE];
+#endif
