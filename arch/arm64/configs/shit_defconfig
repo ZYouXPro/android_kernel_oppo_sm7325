@@ -6,6 +6,7 @@
 #
 # Compiler: Android (6877366 based on r383902b1) clang version 11.0.2 (https://android.googlesource.com/toolchain/llvm-project b397f81060ce6d701042b782172ed13bee898b79)
 #
+CONFIG_LOCALVERSION=""
 CONFIG_OPLUS_SYSTEM_KERNEL_QCOM=y
 # CONFIG_OPLUS_SYSTEM_KERNEL_MTK is not set
 # CONFIG_OPLUS_AGING_DEBUG is not set
