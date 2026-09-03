@@ -3,7 +3,7 @@ name: Build Kernel
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 10 * * 4'   # 每周四 Amoy时间 18:00
+    - cron: '0 10 * * 4'
 
 jobs:
   build:
