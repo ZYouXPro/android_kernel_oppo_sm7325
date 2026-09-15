@@ -4486,7 +4486,7 @@ static inline bool entity_is_long_sleeper(struct sched_entity *se)
 }
 
 static void
-place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
+place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 {
 	u64 vslice, vruntime = avg_vruntime(cfs_rq);
 	s64 lag = 0;
@@ -4512,7 +4512,7 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 
 	se->vruntime = vruntime - lag;
 
-	if (sched_feat(PLACE_DEADLINE_INITIAL) && initial)
+	if (sched_feat(PLACE_DEADLINE_INITIAL) && (flags & ENQUEUE_INITIAL))
 		vslice /= 2;
 
 	se->deadline = se->vruntime + vslice;
@@ -4544,7 +4544,7 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 	if (entity_is_long_sleeper(se))
 		se->vruntime = avg_vruntime(cfs_rq);
 #ifdef CONFIG_OPLUS_FEATURE_VT_CAP
-	android_rvh_place_entity_handler(NULL, cfs_rq, se, initial, &vruntime);
+	android_rvh_place_entity_handler(NULL, cfs_rq, se, flags, &vruntime);
 #endif
 }
 
@@ -12423,7 +12423,7 @@ static void task_fork_fair(struct task_struct *p)
 		update_curr(cfs_rq);
 		se->vruntime = curr->vruntime;
 	}
-	place_entity(cfs_rq, se, 1);
+	place_entity(cfs_rq, se, ENQUEUE_INITIAL);
 
 	if (sysctl_sched_child_runs_first && curr && entity_before(curr, se)) {
 		/*
