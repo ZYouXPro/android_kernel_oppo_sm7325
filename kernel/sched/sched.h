@@ -643,6 +643,8 @@ struct cfs_rq {
 	unsigned int		idle_h_nr_running; /* SCHED_IDLE */
 
 	u64			exec_clock;
+	s64			avg_vruntime;
+	u64			avg_load;
 	u64			min_vruntime;
 #ifndef CONFIG_64BIT
 	u64			min_vruntime_copy;
@@ -1884,6 +1886,8 @@ extern const u32		sched_prio_to_wmult[40];
 #define ENQUEUE_MIGRATED	0x00
 #endif
 
+#define ENQUEUE_INITIAL		0x80
+
 #define RETRY_TASK		((void *)-1UL)
 
 struct sched_class {
@@ -2173,6 +2177,11 @@ extern void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags);
 
 extern const_debug unsigned int sysctl_sched_nr_migrate;
 extern const_debug unsigned int sysctl_sched_migration_cost;
+
+extern unsigned int sysctl_sched_base_slice;
+
+extern u64 avg_vruntime(struct cfs_rq *cfs_rq);
+extern int entity_eligible(struct cfs_rq *cfs_rq, struct sched_entity *se);
 
 #ifdef CONFIG_SCHED_HRTICK
 
