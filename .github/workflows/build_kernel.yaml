@@ -1,9 +1,7 @@
-name: Build Kernel
+name: Build ZYOUX Kernel
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 10 * * 4'
 
 jobs:
   build:
@@ -29,7 +27,7 @@ jobs:
           repository: ZYouXPro/android_kernel_oppo_sm7325
           path: kernel/msm-5.4
           fetch-depth: 1
-          ref: oppo/sm7325_v_15.0.0_k11
+          ref: zyoux/sm7325_v_15.0.0_k11
 
       - name: Checkout Modules Source
         uses: actions/checkout@v6
@@ -68,14 +66,7 @@ jobs:
           export ARCH="arm64"
           export SUBARCH="arm64"
           cd kernel/msm-5.4
-          curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
-          curl -LSs "https://raw.githubusercontent.com/JackA1ltman/NonGKI_Kernel_Build_2nd/mainline/Patches/syscall_hook_patches.sh" -o syscall_hook_patches.sh
-          chmod +x syscall_hook_patches.sh
-          bash syscall_hook_patches.sh
           make O=out CC="clang" LLVM=1 shit_defconfig
-          ./scripts/config --file out/.config \
-            -e CONFIG_KSU \
-            -e CONFIG_KSU_MANUAL_HOOK
           make O=out CC="clang" LLVM=1 -j$(nproc)
 
       - name: Pack Boot Image
@@ -92,29 +83,14 @@ jobs:
             exit 1
           fi
           cp ../kernel/msm-5.4/out/arch/arm64/boot/Image kernel
-          ./magiskboot repack boot_origin.img ../boot-ReSukiSU-${{ env.BUILD_DATE }}.img
+          ./magiskboot repack boot_origin.img ../boot-zyoux-${{ env.BUILD_DATE }}.img
           pwd
           cd ..
           pwd
 
-      - name: Upload Flashable Kernel
+      - name: Upload boot
         uses: actions/upload-artifact@v6
         with:
-          name: ReSukiSU_kernel
+          name: BPF_kernel
           path: |
-            boot-ReSukiSU-${{ env.BUILD_DATE }}.img
-
-      - name: Upload Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.BUILD_DATE }}
-          name: KernelSU Kernel for OPLUS SM7325 (${{ env.BUILD_DATE }})
-          body: |
-            ⌛编译日期: ${{ env.BUILD_DATE }}
-            🍼内核版本: 5.4.254
-            🍨欢迎刷入ZYOUX的内核！
-            ⚠️暂未验证
-          files: |
-            boot-ReSukiSU-${{ env.BUILD_DATE }}.img
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            boot-zyoux-${{ env.BUILD_DATE }}.img
