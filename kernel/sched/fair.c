@@ -22,6 +22,7 @@
  */
 #include "sched.h"
 
+#include <linux/rbtree_augmented.h>
 #include <trace/events/sched.h>
 #include <trace/hooks/sched.h>
 
@@ -609,7 +610,7 @@ static inline int entity_before(struct sched_entity *a,
 	return (s64)(a->vruntime - b->vruntime) < 0;
 }
 
-static inline struct sched_entity *__node_2_se(struct rb_node *node)
+static inline struct sched_entity *rb_entry_se(struct rb_node *node)
 {
 	return rb_entry(node, struct sched_entity, run_node);
 }
@@ -665,16 +666,6 @@ u64 avg_vruntime(struct cfs_rq *cfs_rq)
 	}
 
 	return cfs_rq->min_vruntime + avg;
-}
-
-static void update_entity_lag(struct cfs_rq *cfs_rq, struct sched_entity *se)
-{
-	s64 lag, limit;
-
-	lag = avg_vruntime(cfs_rq) - se->vruntime;
-
-	limit = calc_delta_fair(max_t(u64, 2*se->slice, TICK_NSEC), se);
-	se->vlag = clamp(lag, -limit, limit);
 }
 
 int entity_eligible(struct cfs_rq *cfs_rq, struct sched_entity *se)
@@ -734,9 +725,9 @@ static void update_min_vruntime(struct cfs_rq *cfs_rq)
 #endif
 }
 
-static inline bool __entity_less(struct rb_node *a, const struct rb_node *b)
+static inline bool __entity_less(struct rb_node *a, struct rb_node *b)
 {
-	return entity_before(__node_2_se(a), __node_2_se(b));
+	return entity_before(rb_entry_se(a), rb_entry_se(b));
 }
 
 #define deadline_gt(field, lse, rse) ({ (s64)((lse)->field - (rse)->field) > 0; })
@@ -744,7 +735,7 @@ static inline bool __entity_less(struct rb_node *a, const struct rb_node *b)
 static inline void __update_min_deadline(struct sched_entity *se, struct rb_node *node)
 {
 	if (node) {
-		struct sched_entity *rse = __node_2_se(node);
+		struct sched_entity *rse = rb_entry_se(node);
 		if (deadline_gt(min_deadline, se, rse))
 			se->min_deadline = rse->min_deadline;
 	}
@@ -844,7 +835,7 @@ static struct sched_entity *__pick_eevdf(struct cfs_rq *cfs_rq)
 		return curr;
 
 	while (node) {
-		struct sched_entity *se = __node_2_se(node);
+		struct sched_entity *se = rb_entry_se(node);
 
 		if (!entity_eligible(cfs_rq, se)) {
 			node = node->rb_left;
@@ -855,7 +846,7 @@ static struct sched_entity *__pick_eevdf(struct cfs_rq *cfs_rq)
 			best = se;
 
 		if (node->rb_left) {
-			struct sched_entity *left = __node_2_se(node->rb_left);
+			struct sched_entity *left = rb_entry_se(node->rb_left);
 
 			if (!best_left || deadline_gt(min_deadline, best_left, left))
 				best_left = left;
@@ -875,13 +866,13 @@ static struct sched_entity *__pick_eevdf(struct cfs_rq *cfs_rq)
 
 	node = &best_left->run_node;
 	while (node) {
-		struct sched_entity *se = __node_2_se(node);
+		struct sched_entity *se = rb_entry_se(node);
 
 		if (se->deadline == se->min_deadline)
 			return se;
 
 		if (node->rb_left &&
-		    __node_2_se(node->rb_left)->min_deadline == se->min_deadline) {
+		    rb_entry_se(node->rb_left)->min_deadline == se->min_deadline) {
 			node = node->rb_left;
 			continue;
 		}
@@ -954,6 +945,16 @@ static inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
 	return delta;
 }
 
+static void update_entity_lag(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	s64 lag, limit;
+
+	lag = avg_vruntime(cfs_rq) - se->vruntime;
+
+	limit = calc_delta_fair(max_t(u64, 2*se->slice, TICK_NSEC), se);
+	se->vlag = clamp(lag, -limit, limit);
+}
+
 /*
  * The idea is to set a period in which each task runs once.
  *
@@ -1021,6 +1022,23 @@ void init_entity_runnable_average(struct sched_entity *se)
 	struct sched_avg *sa = &se->avg;
 
 	memset(sa, 0, sizeof(*sa));
+
+static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se);
+
+static void update_deadline(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	if ((s64)(se->vruntime - se->deadline) < 0)
+		return;
+
+	se->slice = sysctl_sched_base_slice;
+
+	se->deadline = se->vruntime + calc_delta_fair(se->slice, se);
+
+	if (cfs_rq->nr_running > 1) {
+		resched_curr(rq_of(cfs_rq));
+		clear_buddies(cfs_rq, se);
+	}
+}
 
 	/*
 	 * Tasks are initialized with full load to be seen as heavy tasks until
@@ -1180,23 +1198,6 @@ static void update_curr(struct cfs_rq *cfs_rq)
 static void update_curr_fair(struct rq *rq)
 {
 	update_curr(cfs_rq_of(&rq->curr->se));
-}
-
-static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se);
-
-static void update_deadline(struct cfs_rq *cfs_rq, struct sched_entity *se)
-{
-	if ((s64)(se->vruntime - se->deadline) < 0)
-		return;
-
-	se->slice = sysctl_sched_base_slice;
-
-	se->deadline = se->vruntime + calc_delta_fair(se->slice, se);
-
-	if (cfs_rq->nr_running > 1) {
-		resched_curr(rq_of(cfs_rq));
-		clear_buddies(cfs_rq, se);
-	}
 }
 
 static inline void
