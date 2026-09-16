@@ -1023,23 +1023,6 @@ void init_entity_runnable_average(struct sched_entity *se)
 
 	memset(sa, 0, sizeof(*sa));
 
-static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se);
-
-static void update_deadline(struct cfs_rq *cfs_rq, struct sched_entity *se)
-{
-	if ((s64)(se->vruntime - se->deadline) < 0)
-		return;
-
-	se->slice = sysctl_sched_base_slice;
-
-	se->deadline = se->vruntime + calc_delta_fair(se->slice, se);
-
-	if (cfs_rq->nr_running > 1) {
-		resched_curr(rq_of(cfs_rq));
-		clear_buddies(cfs_rq, se);
-	}
-}
-
 	/*
 	 * Tasks are initialized with full load to be seen as heavy tasks until
 	 * they get a chance to stabilize to their real load level.
@@ -1140,6 +1123,23 @@ extern void  update_jank_trace_info(struct task_struct *tsk, int trace_type, uns
 /*
  * Update the current task's runtime statistics.
  */
+static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se);
+
+static void update_deadline(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	if ((s64)(se->vruntime - se->deadline) < 0)
+		return;
+
+	se->slice = sysctl_sched_base_slice;
+
+	se->deadline = se->vruntime + calc_delta_fair(se->slice, se);
+
+	if (cfs_rq->nr_running > 1) {
+		resched_curr(rq_of(cfs_rq));
+		clear_buddies(cfs_rq, se);
+	}
+}
+
 static void update_curr(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *curr = cfs_rq->curr;
