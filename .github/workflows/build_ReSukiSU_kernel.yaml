@@ -2,8 +2,6 @@ name: Build Kernel
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 10 * * 4'
 
 jobs:
   build:
