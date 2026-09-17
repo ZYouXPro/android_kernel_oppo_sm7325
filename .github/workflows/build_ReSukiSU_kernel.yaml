@@ -113,6 +113,7 @@ jobs:
             ⌛编译日期: ${{ env.BUILD_DATE }}
             🍼内核版本: 5.4.254
             🍨欢迎刷入ZYOUX的内核！
+            🥞ColorOS 17及以上版本需要使用BPF版本才能开机！
             ⚠️暂未验证
           files: |
             boot-ReSukiSU-${{ env.BUILD_DATE }}.img
