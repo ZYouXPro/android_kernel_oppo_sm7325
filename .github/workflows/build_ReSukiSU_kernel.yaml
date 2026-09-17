@@ -27,7 +27,7 @@ jobs:
           repository: ZYouXPro/android_kernel_oppo_sm7325
           path: kernel/msm-5.4
           fetch-depth: 1
-          ref: zyoux/sm7325_v_15.0.0_k11
+          ref: EEVDF
 
       - name: Checkout Modules Source
         uses: actions/checkout@v6
