@@ -1,4 +1,4 @@
-name: Build ReSukiSU Kernel
+name: Build 5.10-BPF ReSukiSU Kernel
 
 on:
   workflow_dispatch:
