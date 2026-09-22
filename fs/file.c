@@ -18,6 +18,8 @@
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
+#include <linux/close_range.h>
+#include <linux/bitmap.h>
 
 unsigned int sysctl_nr_open __read_mostly = 1024*1024;
 unsigned int sysctl_nr_open_min = BITS_PER_LONG;
@@ -640,6 +642,72 @@ out_unlock:
 	return -EBADF;
 }
 EXPORT_SYMBOL(__close_fd); /* for ksys_close() */
+
+static inline void __range_cloexec(struct files_struct *files,
+                                   unsigned int fd, unsigned int max_fd)
+{
+    struct fdtable *fdt;
+
+    spin_lock(&files->file_lock);
+    fdt = files_fdtable(files);
+    max_fd = min(max_fd, fdt->max_fds - 1);
+    if (fd <= max_fd)
+        bitmap_set(fdt->close_on_exec, fd, max_fd - fd + 1);
+    spin_unlock(&files->file_lock);
+}
+
+static inline void __range_close(struct files_struct *files,
+                                 unsigned int fd, unsigned int max_fd)
+{
+    while (fd <= max_fd) {
+        __close_fd(files, fd);
+        fd++;
+    }
+}
+
+int __close_range(unsigned int fd, unsigned int max_fd, unsigned int flags)
+{
+    struct files_struct *displaced = NULL;
+    struct files_struct *files;
+    unsigned int cur_max;
+    int ret;
+
+    if (flags & ~(CLOSE_RANGE_UNSHARE | CLOSE_RANGE_CLOEXEC))
+        return -EINVAL;
+    if (fd > max_fd)
+        return -EINVAL;
+
+    if (flags & CLOSE_RANGE_UNSHARE) {
+        ret = unshare_files(&displaced);
+        if (ret)
+            return ret;
+    }
+
+    files = current->files;
+    rcu_read_lock();
+    cur_max = files_fdtable(files)->max_fds;
+    rcu_read_unlock();
+    if (cur_max) {
+        max_fd = min(max_fd, cur_max - 1);
+        if (fd <= max_fd) {
+            if (flags & CLOSE_RANGE_CLOEXEC)
+                __range_cloexec(files, fd, max_fd);
+            else
+                __range_close(files, fd, max_fd);
+        }
+    }
+
+    if (displaced)
+        put_files_struct(displaced);
+
+    return 0;
+}
+
+SYSCALL_DEFINE3(close_range, unsigned int, fd, unsigned int, max_fd,
+                unsigned int, flags)
+{
+    return __close_range(fd, max_fd, flags);
+}
 
 /*
  * variant of __close_fd that gets a ref on the file for later fput
