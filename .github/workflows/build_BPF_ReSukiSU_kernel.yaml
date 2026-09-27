@@ -75,6 +75,8 @@ jobs:
           # Fuck -dirty
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
+          echo "KernelSU/" >> .git/info/exclude
+          echo "/drivers/kernelsu" >> .git/info/exclude
           git add -A
           git commit -m "apply patches" --no-verify
           
