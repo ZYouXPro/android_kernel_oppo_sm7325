@@ -73,8 +73,8 @@ jobs:
           bash syscall_hook_patches.sh
           
           # Fuck -dirty
-          git config user.email "ci@localhost"
-          git config user.name "CI"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
           git add -A
           git commit -m "apply patches" --no-verify
           
@@ -121,7 +121,7 @@ jobs:
             boot-BPF-ReSukiSU-${{ env.BUILD_DATE }}.img
 
       - name: Upload Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.BUILD_DATE }}
           name: KernelSU Kernel for OPLUS SM7325 (${{ env.BUILD_DATE }})
