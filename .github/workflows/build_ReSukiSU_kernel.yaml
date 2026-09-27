@@ -3,7 +3,7 @@ name: Build ReSukiSU Kernel
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 10 * * 4'
+    - cron: '27 10 * * 4'
 
 jobs:
   build:
