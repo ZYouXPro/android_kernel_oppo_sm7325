@@ -3,7 +3,7 @@ name: Build 5.10-BPF ReSukiSU Kernel
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 10 * * 4'
+    - cron: '27 10 * * 4'
 jobs:
   build:
     name: Compile Kernel
@@ -71,11 +71,27 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/JackA1ltman/NonGKI_Kernel_Build_2nd/mainline/Patches/syscall_hook_patches.sh" -o syscall_hook_patches.sh
           chmod +x syscall_hook_patches.sh
           bash syscall_hook_patches.sh
+          
+          # Fuck -dirty
+          git config user.email "ci@localhost"
+          git config user.name "CI"
+          git add -A
+          git commit -m "apply patches" --no-verify
+          
           make O=out CC="clang" LLVM=1 shit_defconfig
           ./scripts/config --file out/.config \
             -e CONFIG_KSU \
             -e CONFIG_KSU_MANUAL_HOOK
           make O=out CC="clang" LLVM=1 -j$(nproc)
+
+      - name: Package with AnyKernel3
+        run: |
+          git clone --depth=1 https://github.com/ZYouXPro/AnyKernel3.git AnyKernel3
+          rm -rf AnyKernel3/.git
+          cp kernel/msm-5.4/out/arch/arm64/boot/Image AnyKernel3/
+          cd AnyKernel3
+          zip -r9 ../BPF-ReSukiSU-Kernel-${{ env.BUILD_DATE }}.zip . \
+            -x ".git*" "README.md" "*placeholder"
 
       - name: Pack Boot Image
         run: |
@@ -96,11 +112,12 @@ jobs:
           cd ..
           pwd
 
-      - name: Upload Flashable Kernel
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v6
         with:
           name: ReSukiSU_kernel
           path: |
+            BPF-ReSukiSU-Kernel-${{ env.BUILD_DATE }}.zip
             boot-BPF-ReSukiSU-${{ env.BUILD_DATE }}.img
 
       - name: Upload Release
@@ -112,9 +129,11 @@ jobs:
             ⌛编译日期: ${{ env.BUILD_DATE }}
             🍼内核版本: 5.4.254
             🍨欢迎刷入ZYOUX的内核！
+            🧀ZIP为AnyKernel3可用KSU管理器直接更新哦！
             🥞ColorOS 17及以上版本需要使用BPF版本才能开机！
             ⚠️暂未验证
           files: |
+            BPF-ReSukiSU-Kernel-${{ env.BUILD_DATE }}.zip
             boot-BPF-ReSukiSU-${{ env.BUILD_DATE }}.img
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
