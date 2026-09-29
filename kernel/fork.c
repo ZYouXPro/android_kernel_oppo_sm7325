@@ -2685,13 +2685,13 @@ noinline static int copy_clone_args_from_user(struct kernel_clone_args *kargs,
 	if (err)
 		return err;
 
-	if (size > sizeof(struct clone_args)) {
+	if (usize > sizeof(struct clone_args)) {
 		unsigned char __user *addr;
 		unsigned char __user *end;
 		unsigned char val;
 
 		addr = (void __user *)uargs + sizeof(struct clone_args);
-		end = (void __user *)uargs + size;
+		end = (void __user *)uargs + usize;
 
 		for (; addr < end; addr++) {
 			if (get_user(val, addr))
@@ -2700,10 +2700,10 @@ noinline static int copy_clone_args_from_user(struct kernel_clone_args *kargs,
 				return -E2BIG;
 		}
 
-		size = sizeof(struct clone_args);
+		usize = sizeof(struct clone_args);
 	}
 
-	if (copy_from_user(&args, uargs, size))
+	if (copy_from_user(&args, uargs, usize))
 		return -EFAULT;
 
 	if (unlikely(args.set_tid_size > MAX_PID_NS_LEVEL))
