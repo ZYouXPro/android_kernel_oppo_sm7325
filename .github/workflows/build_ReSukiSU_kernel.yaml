@@ -134,7 +134,6 @@ jobs:
             🍨欢迎刷入ZYOUX的内核！
             🧀ZIP为AnyKernel3可用KSU管理器直接更新哦！
             🥞ColorOS 17及以上版本需要使用BPF版本才能开机！
-            ⚠️暂未验证
           files: |
             ReSukiSU-Kernel-${{ env.BUILD_DATE }}.zip
             boot-ReSukiSU-${{ env.BUILD_DATE }}.img
